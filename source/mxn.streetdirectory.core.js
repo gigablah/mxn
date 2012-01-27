@@ -5,11 +5,11 @@ Mapstraction: {
 	init: function(element, api) {		
 		var me = this;
 		if (SD) {
-			this.maps[api] = new SD.genmap.Map(element);
-
+			this.maps[api] = new SD.genmap.Map(element, {});
+			
 			EventManager.add(this.maps[api], 'click', function() {
 				
-				var location = this.maps[api].viewportInfo.lastCursorLatLon;
+				var location = me.maps[api].viewportInfo.lastCursorLatLon;
 				if ( location ) {
 					me.click.fire({'location': new mxn.LatLonPoint(location.lat, location.lon)});
 				}
@@ -56,13 +56,14 @@ Mapstraction: {
 
 	addControls: function( args ) {
 		var map = this.maps[this.api];
-	
-		if (!this.controls) {
+		
+		if (!this.controls.length) {
 			if (args.zoom == 'large') {
 				this.controls = new CompleteMapControl();
 			}
 			else if (args.zoom == 'small') {
 				this.controls = new MediumMapControl();
+				
 			}
 			if (this.controls) {
 				if (!args.pan) {
