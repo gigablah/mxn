@@ -6,10 +6,14 @@ Mapstraction: {
 		var me = this;
 		if (SD) {
 			this.maps[api] = new SD.genmap.Map(element, {});
+			this.markerManager = new SD.genmap.MarkerStaticManager({
+				map: this.maps[api]
+			});
 			
 			EventManager.add(this.maps[api], 'click', function() {
 				
-				var location = me.maps[api].viewportInfo.lastCursorLatLon;
+				var pos = me.maps[api].viewportInfo.lastCursorPosDown;
+				var location = me.maps[api].viewportInfo.viewportScreenToGeo(pos.x, pos.y);
 				if ( location ) {
 					me.click.fire({'location': new mxn.LatLonPoint(location.lat, location.lon)});
 				}
@@ -97,9 +101,7 @@ Mapstraction: {
 	},
 
 	addMapTypeControls: function() {
-		var map = this.maps[this.api];
-		
-		// TODO: Add provider code
+		throw 'Not supported';
 	},
 
 	setCenterAndZoom: function(point, zoom) { 
@@ -110,23 +112,37 @@ Mapstraction: {
 	
 	addMarker: function(marker, old) {
 		var map = this.maps[this.api];
-		var pin = marker.toProprietary(this.api);
+		var options = marker.toProprietary(this.api);
+		options.map = map;
 		
-		// TODO: Add provider code
+		var pin = this.markerManager.add(
+			options
+		);
 		
-		return pin;
+		if (marker.infoBubble) {
+			if (marker.hover) {
+				event_action = "mouseover";
+			}
+			else {
+				event_action = "click";
+			}
+			EventManager.add(pin, event_action, function(event) {
+				map.infoWindow.open(pin, marker.infoBubble);
+				event.cancelBubble = true;
+				event.cancel = true;
+			});
+		}
+		console.log(pin);
+		return pin; // this is attached to marker.proprietary_marker
 	},
 
 	removeMarker: function(marker) {
 		var map = this.maps[this.api];
-		
-		// TODO: Add provider code
+		this.markerManager.remove(marker.proprietary_marker);
 	},
 	
 	declutterMarkers: function(opts) {
-		var map = this.maps[this.api];
-		
-		// TODO: Add provider code
+		throw 'Not supported';
 	},
 
 	addPolyline: function(polyline, old) {
@@ -187,31 +203,11 @@ Mapstraction: {
 	},
 
 	setMapType: function(type) {
-		var map = this.maps[this.api];
-		switch(type) {
-			case mxn.Mapstraction.ROAD:
-				// TODO: Add provider code
-				break;
-			case mxn.Mapstraction.SATELLITE:
-				// TODO: Add provider code
-				break;
-			case mxn.Mapstraction.HYBRID:
-				// TODO: Add provider code
-				break;
-			default:
-				// TODO: Add provider code
-		}	 
+		throw 'Not supported';	 
 	},
 
 	getMapType: function() {
-		var map = this.maps[this.api];
-		
-		// TODO: Add provider code
-
-		//return mxn.Mapstraction.ROAD;
-		//return mxn.Mapstraction.SATELLITE;
-		//return mxn.Mapstraction.HYBRID;
-
+		throw 'Not supported';
 	},
 
 	getBounds: function () {
@@ -275,9 +271,17 @@ Mapstraction: {
 	},
 	
 	mousePosition: function(element) {
-		var map = this.maps[this.api];
-
-		// TODO: Add provider code	
+		var locDisp = document.getElementById(element);
+		if (locDisp !== null) {
+			var map = this.maps[this.api];
+			EventManager.add(map, "mousemove", function() { // SD's mousemove is undocumented
+				var pos = map.viewportInfo.lastCursorPosMove;
+				var point = map.viewportInfo.viewportScreenToGeo(pos.x, pos.y);
+				var loc = point.lat.toFixed(4) + ' / ' + point.lon.toFixed(4);
+				locDisp.innerHTML = loc;
+			});
+			locDisp.innerHTML = '0.0000 / 0.0000';
+		}
 	}
 },
 
@@ -298,24 +302,49 @@ LatLonPoint: {
 Marker: {
 	
 	toProprietary: function() {
-		return {};
-		// TODO: Add provider code
+		var me = this;
+		var options = {};
+		if (this.labelText) {
+			options.title =  this.labelText;
+		}
+		if (this.iconUrl) {
+			var icon = new SD.genmap.MarkerImage({
+				image : this.iconUrl, 
+				title : this.labelText ? this.labelText : null,
+				iconSize : this.iconSize ? new Size(this.iconSize[0], this.iconSize[1]) : null,
+				iconAnchor : this.iconAnchor ? new Point(this.iconAnchor[0], this.iconAnchor[1]) : new Point(this.iconSize[0]/2, this.iconSize[1]/2),
+				infoWindowAnchor : this.infoWindowAnchor ? new Point(this.infoWindowAnchor[0], this.infoWindowAnchor[1]) : new Point(this.iconSize[0]/2, this.iconSize[1]/2)
+			});
+			options.icon = icon;
+		}
+		if (this.draggable) {
+			options.draggable = this.draggable;
+		}
+		options.position = this.location.toProprietary('streetdirectory');
+		
+		return options;
 	},
 
 	openBubble: function() {		
-		// TODO: Add provider code
+		if (this.infoBubble) this.map.infoWindow.open(this.proprietary_marker, this.infoBubble);
 	},
 
+	closeBubble: function() {
+		this.map.infoWindow.close();
+	},
+	
 	hide: function() {
-		// TODO: Add provider code
+		this.proprietary_marker.setDisplay(false);
 	},
 
 	show: function() {
-		// TODO: Add provider code
+		this.proprietary_marker.setDisplay(true);
 	},
 
 	update: function() {
-		// TODO: Add provider code
+		point = new mxn.LatLonPoint();
+		point.fromProprietary('streetdirectory', this.proprietary_marker.getPtPosition());
+		this.location = point;
 	}
 	
 },
